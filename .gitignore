@@ -1,3 +1,7 @@
 *~
 *.pyc
 *.egg-info
+dist/*
+node_modules/*
+.parcel-cache/*
+yarn-error.log
