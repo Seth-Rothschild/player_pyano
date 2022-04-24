@@ -9,7 +9,7 @@ app = Flask(__name__)
 LOCK = False
 SONGS_LIST = os.listdir("songs")
 
-output_name = mido.get_output_names()[0]
+output_name = mido.get_output_names()[1]
 PORT = mido.open_output(output_name)
 
 
@@ -39,18 +39,26 @@ def play():
     print("Playing {} ({} Seconds)".format(path, midi_file.length))
 
     for msg in midi_file.play():
-        PORT.send(msg)
+        if hasattr(msg, "velocity"):
+            PORT.send(msg.copy(channel=0, velocity=max(msg.velocity//4, 30)))
+            pass
+        else:
+            PORT.send(msg.copy(channel=0))
+
     LOCK = False
 
 
-def run(port=3000):
+def run(port=3001):
     try:
 
-        print("Serving App on Port {}".format(port))
+        print("Serving Backend on Port {}".format(port))
         serve(app, port=port)
     except KeyboardInterrupt:
-        print("n/Interrupted!")
+        print("\nInterrupted!")
     finally:
+        for i in range(128):
+            PORT.send(mido.Message('note_off', note=i, velocity=127))
+
         PORT.reset()
         PORT.close()
 
