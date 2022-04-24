@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 
-const baseUrl = "http://localhost:3001";
 
 export function App() {
 
@@ -24,7 +23,7 @@ export function App() {
       setIsSending(true);
 
       //send actual request
-      const url = baseUrl + '/play';
+      const url = '/api/play';
       const res = await fetch(url);
 
       //once request is sent, update state again
