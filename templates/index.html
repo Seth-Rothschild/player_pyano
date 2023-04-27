@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Home</title>
+  </head>
+  <body>
+    <h1>Home</h1>
+    <form action="play" method="post">
+        <select name="file">
+          {% for file in context.files %}
+            <option value="{{ file }}">{{ file }}</option>
+          {% endfor %}
+        </select>
+        <label for="file">Midi File</label>
+      <input type="submit" value="Play">
+    </form>
+    <form action="reduce_velocity" method="post">
+      <input type="number" name="velocity" min="0" max="100" value="{{ context.velocity }}">
+      <label for="velocity">Volume</label>
+      <input type="submit" value="Reduce">
+    </form>
+
+    <form action="stop" method="post">
+      <input type="submit" value="Stop">
+    </form>
+  </body>
+</html>
