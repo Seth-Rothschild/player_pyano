@@ -5,7 +5,7 @@
     <title>Home</title>
   </head>
   <body>
-    <h1>Home</h1>
+    <h1>Player Pyano</h1>
     <form action="play" method="post">
         <select name="file">
           {% for file in context.files %}
@@ -19,6 +19,9 @@
       <input type="number" name="velocity" min="0" max="100" value="{{ context.velocity }}">
       <label for="velocity">Volume</label>
       <input type="submit" value="Reduce">
+    </form>
+    <form action="pause" method="post">
+      <input type="submit" value="Pause">
     </form>
 
     <form action="stop" method="post">
