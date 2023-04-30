@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, send_from_directory
 import mido
 import os
 import math
@@ -22,25 +22,40 @@ def index():
     context = CONTEXT
     return render_template("index.html", title="Home", context=context)
 
+@app.route('/_app/<path:path>')
+def send_report(path):
+    return send_from_directory('templates/_app', path)
 
 def play_midi_file(filepath):
+    if not CONTEXT["selected_file"] == "":
+        """If a file is already playing, stop it"""
+        CONTEXT["stop"] = True
+        time.sleep(2)
+        cleanup_context()
     try:
         output_name = mido.get_output_names()[1]
         output = mido.open_output(output_name)
     except ModuleNotFoundError:
         print("No output found, using empty output")
         CONTEXT["DEBUG"] = True
-    
+
     if CONTEXT["DEBUG"]:
         output = empty_output()
 
     CONTEXT["selected_file"] = filepath
     mid = mido.MidiFile(filepath)
     CONTEXT["song_length"] = mid.length
-    start_time = time.time()
+    previous_time = time.time()
+    time_elapsed = 0
     for i, msg in enumerate(mid.play()):
-        CONTEXT["percent_done"] = (time.time() - start_time) / CONTEXT["song_length"] * 100
+        time_elapsed += time.time() - previous_time
+        previous_time = time.time()
+        if CONTEXT["song_length"] > 0:
+            CONTEXT["percent_done"] = time_elapsed / CONTEXT["song_length"] * 100
+        else:
+            CONTEXT["percent_done"] = None
         while CONTEXT["paused"]:
+            previous_time = time.time()
             if CONTEXT["stop"]:
                 break
             pass
@@ -55,6 +70,7 @@ def play_midi_file(filepath):
     cleanup_midi(output)
     output.close()
 
+
 class empty_output:
     def send(self, msg):
         print(msg)
@@ -63,6 +79,7 @@ class empty_output:
     def close(self):
         pass
 
+
 def cleanup_context():
     CONTEXT["selected_file"] = ""
     CONTEXT["stop"] = False
@@ -70,44 +87,53 @@ def cleanup_context():
     CONTEXT["percent_done"] = 0
     CONTEXT["song_length"] = 0
 
+
 def cleanup_midi(output):
-    # turn off all notes
-    for i in range(128):
-        output.send(mido.Message("note_off", channel=0, note=i, velocity=0))
+    # turn off all notes, send 3 times
+    for _ in range(3):
+        for i in range(128):
+            output.send(mido.Message("note_off", channel=0, note=i, velocity=0))
+
+    # send control change 123 to turn off all notes
+    output.send(mido.Message("control_change", channel=0, control=123, value=0))
 
     # turn off all pedals
     for i in range(64, 70):
         output.send(mido.Message("control_change", channel=0, control=i, value=0))
 
-@app.route("/play", methods=["POST"])
+
+@app.route("/api/play", methods=["POST"])
 def play():
-    filename = request.form["file"]
+    filename = request.json["file"]
     filepath = "static/midi_files/" + filename
     PLAYER = play_midi_file(filepath)
     return redirect("/")
 
 
-@app.route("/reduce_velocity", methods=["POST"])
+@app.route("/api/volume", methods=["POST"])
 def reduce():
-    velocity = request.form["velocity"]
+    velocity = request.json["volume"]
     CONTEXT["velocity"] = int(velocity)
     return redirect("/")
 
 
-@app.route("/stop", methods=["POST"])
+@app.route("/api/stop", methods=["POST"])
 def stop():
+    CONTEXT["paused"] = False
     CONTEXT["stop"] = True
     return redirect("/")
 
-@app.route("/pause", methods=["POST"])
+
+@app.route("/api/pause", methods=["POST"])
 def pause():
     CONTEXT["paused"] = not CONTEXT["paused"]
     return redirect("/")
 
-@app.route("/get_context", methods=["GET"])
+
+@app.route("/api/context", methods=["GET"])
 def get_context():
     return CONTEXT
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="::1", debug=True)

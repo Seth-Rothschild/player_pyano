@@ -1,3 +1,5 @@
 env
 *.pyc
 midi_files/
+_app
+templates/
