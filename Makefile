@@ -6,6 +6,9 @@ build:
 	cd frontend && npm run build
 	cp -r frontend/build/ templates/
 
+test:
+	env/bin/python -m pytest test_app.py
+
 start-frontend:
 	## Use to run frontend with live reloading
 	## Backend will also need to be running

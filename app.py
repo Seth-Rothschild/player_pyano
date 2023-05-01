@@ -13,6 +13,7 @@ CONTEXT = {
     "velocity": 100,
     "song_length": 0,
     "percent_done": 0,
+    "playlist": [],
     "DEBUG": False,
 }
 
@@ -22,9 +23,68 @@ def index():
     context = CONTEXT
     return render_template("index.html", title="Home", context=context)
 
-@app.route('/_app/<path:path>')
-def send_report(path):
-    return send_from_directory('templates/_app', path)
+
+@app.route("/_app/<path:path>")
+def send_app_files(path):
+    return send_from_directory("templates/_app", path)
+
+
+@app.route("/api/play", methods=["POST"])
+def play():
+    filename = request.json["file"]
+    filepath = "static/midi_files/" + filename
+    play_midi_file(filepath)
+    return "OK", 200
+
+
+@app.route("/api/volume", methods=["POST"])
+def volume():
+    if not "volume" in request.json:
+        return "Bad Request", 400
+
+    velocity = request.json["volume"]
+    if velocity < 0 or velocity > 100:
+        return "Bad Request", 400
+
+    CONTEXT["velocity"] = int(velocity)
+    return "OK", 200
+
+
+@app.route("/api/stop", methods=["POST"])
+def stop():
+    CONTEXT["paused"] = False
+    CONTEXT["stop"] = True
+    return "OK", 200
+
+
+@app.route("/api/pause", methods=["POST"])
+def pause():
+    CONTEXT["paused"] = not CONTEXT["paused"]
+    return "OK", 200
+
+
+@app.route("/api/context", methods=["GET"])
+def get_context():
+    return CONTEXT
+
+
+@app.route("/api/playlist/add", methods=["POST"])
+def add_to_playlist():
+    if not "file" in request.json:
+        return "Bad Request", 400
+    filename = request.json["file"]
+    CONTEXT["playlist"].append(filename)
+    return "OK", 200
+
+
+@app.route("/api/playlist/remove", methods=["POST"])
+def remove_from_playlist():
+    if not "file" in request.json:
+        return "Bad Request", 400
+    filename = request.json["file"]
+    CONTEXT["playlist"] = [x for x in CONTEXT["playlist"] if x != filename]
+    return "OK", 200
+
 
 def play_midi_file(filepath):
     if not CONTEXT["selected_file"] == "":
@@ -70,6 +130,10 @@ def play_midi_file(filepath):
     cleanup_midi(output)
     output.close()
 
+    next_song = play_next()
+    if next_song is not None:
+        play_midi_file("static/midi_files/" + next_song)
+
 
 class empty_output:
     def send(self, msg):
@@ -102,38 +166,12 @@ def cleanup_midi(output):
         output.send(mido.Message("control_change", channel=0, control=i, value=0))
 
 
-@app.route("/api/play", methods=["POST"])
-def play():
-    filename = request.json["file"]
-    filepath = "static/midi_files/" + filename
-    PLAYER = play_midi_file(filepath)
-    return redirect("/")
-
-
-@app.route("/api/volume", methods=["POST"])
-def reduce():
-    velocity = request.json["volume"]
-    CONTEXT["velocity"] = int(velocity)
-    return redirect("/")
-
-
-@app.route("/api/stop", methods=["POST"])
-def stop():
-    CONTEXT["paused"] = False
-    CONTEXT["stop"] = True
-    return redirect("/")
-
-
-@app.route("/api/pause", methods=["POST"])
-def pause():
-    CONTEXT["paused"] = not CONTEXT["paused"]
-    return redirect("/")
-
-
-@app.route("/api/context", methods=["GET"])
-def get_context():
-    return CONTEXT
+def play_next():
+    if len(CONTEXT["playlist"]) == 0:
+        return
+    next_song = CONTEXT["playlist"].pop(0)
+    return next_song
 
 
 if __name__ == "__main__":
-    app.run(host="::1", debug=True)
+    app.run(host="::", debug=True)
