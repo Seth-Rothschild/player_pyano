@@ -10,7 +10,7 @@ CONTEXT = {
     "selected_file": "",
     "stop": False,
     "paused": False,
-    "velocity": 100,
+    "velocity": 40,
     "song_length": 0,
     "percent_done": 0,
     "playlist": [],
@@ -83,6 +83,51 @@ def remove_from_playlist():
         return "Bad Request", 400
     filename = request.json["file"]
     CONTEXT["playlist"] = [x for x in CONTEXT["playlist"] if x != filename]
+    return "OK", 200
+
+
+@app.route("/api/playlist/duplicate", methods=["POST"])
+def duplicate_in_playlist():
+    if not "file" in request.json:
+        return "Bad Request", 400
+    filename = request.json["file"]
+    index = CONTEXT["playlist"].index(filename)
+    if index == -1:
+        return "Bad Request", 400
+    CONTEXT["playlist"].insert(index + 1, filename)
+    return "OK", 200
+
+
+@app.route("/api/files/rename", methods=["POST"])
+def rename_file():
+    if not "file" in request.json or not "newname" in request.json:
+        return "Bad Request", 400
+    filename = request.json["file"]
+    newname = request.json["newname"]
+    os.rename("static/midi_files/" + filename, "static/midi_files/" + newname)
+    CONTEXT["files"] = os.listdir("static/midi_files")
+    return "OK", 200
+
+
+@app.route("/api/files/delete", methods=["POST"])
+def delete_file():
+    if not "file" in request.json:
+        return "Bad Request", 400
+    filename = request.json["file"]
+    os.remove("static/midi_files/" + filename)
+    CONTEXT["files"] = os.listdir("static/midi_files")
+    return "OK", 200
+
+
+@app.route("/api/files/upload", methods=["POST"])
+def upload_file():
+    if not "files" in request.files:
+        return "Bad Request", 400
+    files = request.files.getlist("files")
+    for file in files:
+        basename = os.path.basename(file.filename)
+        file.save("static/midi_files/" + basename)
+    CONTEXT["files"] = os.listdir("static/midi_files")
     return "OK", 200
 
 

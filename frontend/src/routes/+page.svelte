@@ -1,8 +1,9 @@
 <script>
 	import { onMount } from 'svelte';
-	import Playing from './Playing.svelte';
+	import NowPlaying from './NowPlaying.svelte';
 	import Playlist from './Playlist.svelte';
 	import Search from './Search.svelte';
+	import Upload from './Upload.svelte';
 
 	let context;
 	let filteredSongs = [];
@@ -30,9 +31,10 @@
 	<h3>Player Pyano</h3>
 	<div class="small-divider" />
 	{#if context}
-		<Playing {context} />
+		<NowPlaying {context} />
 		<Playlist {context} />
 		<Search {context} {filteredSongs} />
+		<Upload />
 	{:else}
 		<a class="loader large center" />
 	{/if}
