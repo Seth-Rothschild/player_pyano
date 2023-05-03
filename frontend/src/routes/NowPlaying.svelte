@@ -30,7 +30,6 @@
 	}
 </script>
 
-<div style="max-width: 500px;">
 	<h5 class="primary-text">Song Controls</h5>
 	<nav>
 		<button on:click={adjustVolume(-5)} class="circle transparent"><i>remove</i></button>
@@ -98,4 +97,3 @@
 			</nav>
 		</article>
 	{:else}{/if}
-</div>

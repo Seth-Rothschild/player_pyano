@@ -74,7 +74,7 @@
     }
 </script>
 
-	<div style="max-width: 500px; margin-top: 20px;">
+	<div style="margin-top: 20px;">
 		<h5 class="primary-text">Select a Song</h5>
 		<div class="field border prefix round">
 			<i>search</i><input

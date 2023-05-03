@@ -30,7 +30,7 @@
 	}
 </script>
 
-<div style="max-width: 500px; margin-top: 20px">
+<div style="margin-top: 20px">
 	{#if context.playlist.length > 0}
 		<h5 class="primary-text">Playlist</h5>
 		{#each context.playlist as file}

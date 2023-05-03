@@ -27,7 +27,7 @@
 	});
 </script>
 
-<div class="padding">
+<div class="padding" style="max-width: 500px; width:150%">
 	<h3>Player Pyano</h3>
 	<div class="small-divider" />
 	{#if context}
