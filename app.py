@@ -130,6 +130,15 @@ def upload_file():
     CONTEXT["files"] = os.listdir("static/midi_files")
     return "OK", 200
 
+@app.route("/api/files/analytics", methods=["POST"])
+def get_file_analytics():
+    if not "file" in request.json:
+        return "Bad Request", 400
+    filename = request.json["file"]
+    result = get_midi_analytics(filename)
+    return result, 200
+
+
 
 def play_midi_file(filepath):
     if not CONTEXT["selected_file"] == "":
@@ -216,6 +225,52 @@ def play_next():
         return
     next_song = CONTEXT["playlist"].pop(0)
     return next_song
+
+def get_midi_analytics(midi_file_path):
+    mid = mido.MidiFile("static/midi_files/"+midi_file_path)
+    result = {
+        "total_notes": 0,
+        "total_time": 0,
+        "average_note_length": 0,
+        "average_velocity": 0,
+        "max_velocity": 0,
+        "min_velocity": 127,
+        "tracks": [],
+        "instruments": [],
+        "key_signatures": [],
+        "time_signature": "",
+        "tempo": 0,
+    }
+    for track in mid.tracks:
+        for msg in track:
+            if msg.is_meta:
+                if msg.type == "track_name":
+                    result["tracks"].append(msg.name)
+                if msg.type == "device_name":
+                    result["instruments"].append(msg.name)
+                if msg.type == "key_signature":
+                    if msg.key not in result["key_signatures"]:
+                        result["key_signatures"].append(msg.key)
+                if msg.type == "time_signature":
+                    result["time_signature"] = "{}/{}".format(msg.numerator, msg.denominator)
+                if msg.type == "set_tempo":
+                    result["tempo"] = round(mido.tempo2bpm(msg.tempo))
+            if msg.type == "note_on" and msg.velocity > 0:
+                result["total_notes"] += 1
+                result["average_velocity"] += msg.velocity
+                if msg.velocity > result["max_velocity"]:
+                    result["max_velocity"] = msg.velocity
+                if msg.velocity < result["min_velocity"]:
+                    result["min_velocity"] = msg.velocity
+                result["total_time"] += msg.time
+    if mid.length:
+        result["total_time"] = round(mid.length, 2)
+
+    result["average_velocity"] = round(result["average_velocity"] / result["total_notes"], 2)
+    result["average_note_length"] = round(result["total_time"] / result["total_notes"], 2)
+
+    return result
+
 
 
 if __name__ == "__main__":

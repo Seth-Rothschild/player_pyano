@@ -6,6 +6,8 @@
     let query = ""
     $: filterSongs(context.files, query)
 
+    let analytics;
+
 	function filterSongs(files, query) {
 		filteredSongs = files.filter((file) => {
 			return file.toLowerCase().includes(query.toLowerCase());
@@ -72,8 +74,30 @@
         });
         editmode = ""
     }
-</script>
 
+    async function getAnalytics(file) {
+        const res = await fetch('api/files/analytics', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ file: file })
+        });
+        analytics = await res.json();
+    }
+</script>
+{#if analytics}
+<div class="modal active">
+        <h5>Analytics</h5>
+    <div>
+       {#each Object.entries(analytics) as [key, value]}
+       
+            <span>{key}: {value}</span><br />
+         {/each}
+    </div>
+    <button class="border center margin" on:click={()=>{analytics=null}}><i>done</i>Done</button>
+  </div>
+  {/if}
 	<div style="margin-top: 20px;">
 		<h5 class="primary-text">Select a Song</h5>
 		<div class="field border prefix round">
@@ -91,7 +115,7 @@
                         <input type="text" bind:value={newfilename} />
                     {:else}
 
-                    <i>audiotrack</i>
+                    <button class="circle transparent" on:click={getAnalytics(file)}><i>audiotrack</i></button>
                     <h7 style="font-size:1.2em">{file}</h7>
                     {/if}
                 </div>
