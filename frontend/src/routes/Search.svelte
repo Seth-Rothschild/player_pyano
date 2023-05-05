@@ -33,18 +33,6 @@
 		});
 	}
 
-	async function tryPlay() {
-		if (filteredSongs.length == 1) {
-			const res = fetch('api/play', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ file: filteredSongs[0] })
-			});
-		}
-	}
-
     async function updateFileName(file) {
         const res = fetch('api/files/rename', {
             method: 'POST',
@@ -103,7 +91,6 @@
 		<div class="field border prefix round">
 			<i>search</i><input
 				on:input={(e)=>{query = e.target.value}}
-				on:change={tryPlay}
 				type="text"
 				placeholder="Select a song"
 			/>
