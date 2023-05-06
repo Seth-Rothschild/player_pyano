@@ -4,6 +4,7 @@
 	import Playlist from './Playlist.svelte';
 	import Search from './Search.svelte';
 	import Upload from './Upload.svelte';
+	import Admin from './Admin.svelte';
 
 	let context;
 	let filteredSongs = [];
@@ -35,6 +36,7 @@
 		<Playlist {context} />
 		<Search {context} {filteredSongs} />
 		<Upload />
+		<Admin />
 	{:else}
 		<a class="loader large center" />
 	{/if}

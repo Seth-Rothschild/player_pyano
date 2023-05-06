@@ -106,6 +106,7 @@ def test_duplicate_in_playlist():
             "test_song2.mid",
         ]
 
+
 def test_get_analytics():
     sample_file = os.listdir("static/midi_files")[0]
     with app.test_client() as client:
@@ -115,7 +116,6 @@ def test_get_analytics():
         response = client.post("/api/files/analytics", json={"file": sample_file})
         assert response.status_code == 200
         assert response.json == get_midi_analytics(sample_file)
-
 
 
 def test_play_next():
@@ -174,6 +174,7 @@ def test_upload_file():
             assert response.status_code == 200
             assert os.path.exists("static/midi_files/" + sample_file)
 
+
 def test_get_midi_analytics():
     for file in os.listdir("static/midi_files"):
         if file.endswith(".mid"):
@@ -190,8 +191,3 @@ def test_get_midi_analytics():
             assert "key_signatures" in result
             assert "time_signature" in result
             assert "tempo" in result
-
-
-
-
-

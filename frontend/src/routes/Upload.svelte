@@ -3,14 +3,14 @@
 	let outcome = '';
 	async function uploadFile() {
 		let body = new FormData();
-        if (files.length) {
-            for (let i = 0; i < files.length; i++) {
-                body.append('files', files[i]);
-            }
-        }
+		if (files.length) {
+			for (let i = 0; i < files.length; i++) {
+				body.append('files', files[i]);
+			}
+		}
 		const res = await fetch('api/files/upload', {
 			method: 'POST',
-            
+
 			body: body
 		});
 		if (res.status == 200) {

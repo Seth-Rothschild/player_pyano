@@ -10,7 +10,7 @@ CONTEXT = {
     "selected_file": "",
     "stop": False,
     "paused": False,
-    "velocity": 40,
+    "velocity": 50,
     "song_length": 0,
     "percent_done": 0,
     "playlist": [],
@@ -32,8 +32,9 @@ def send_app_files(path):
 @app.route("/api/play", methods=["POST"])
 def play():
     filename = request.json["file"]
-    filepath = "static/midi_files/" + filename
-    play_midi_file(filepath)
+    if "static/midi_files/" not in filename:
+        filename = "static/midi_files/" + filename
+    play_midi_file(filename)
     return "OK", 200
 
 
@@ -130,6 +131,7 @@ def upload_file():
     CONTEXT["files"] = os.listdir("static/midi_files")
     return "OK", 200
 
+
 @app.route("/api/files/analytics", methods=["POST"])
 def get_file_analytics():
     if not "file" in request.json:
@@ -139,12 +141,12 @@ def get_file_analytics():
     return result, 200
 
 
-
 def play_midi_file(filepath):
     if not CONTEXT["selected_file"] == "":
         """If a file is already playing, stop it"""
-        CONTEXT["stop"] = True
-        time.sleep(2)
+        t0 = time.time()
+        while CONTEXT["selected_file"] != "" and time.time() - t0 < 2:
+            CONTEXT["stop"] = True
         cleanup_context()
     try:
         output_name = mido.get_output_names()[1]
@@ -159,6 +161,10 @@ def play_midi_file(filepath):
     CONTEXT["selected_file"] = filepath
     mid = mido.MidiFile(filepath)
     CONTEXT["song_length"] = mid.length
+    analytics = get_midi_analytics(filepath)
+
+    normalization_factor = 40 / analytics["average_velocity"]
+
     previous_time = time.time()
     time_elapsed = 0
     for i, msg in enumerate(mid.play()):
@@ -176,15 +182,27 @@ def play_midi_file(filepath):
         if CONTEXT["stop"]:
             break
         if msg.type == "note_on":
-            msg.velocity = math.floor(CONTEXT["velocity"] / 100 * msg.velocity)
+            user_adjustment = (CONTEXT["velocity"] - 50) / 75 + 1
+            proposed_velocity = min(
+                max(
+                    math.floor(user_adjustment * normalization_factor * msg.velocity), 0
+                ),
+                60,
+            )
+            msg.velocity = math.floor(proposed_velocity)
+
         msg.channel = 0
 
         output.send(msg)
+
+    next_song = None
+    if not CONTEXT["stop"]:
+        next_song = play_next()
+
     cleanup_context()
     cleanup_midi(output)
     output.close()
 
-    next_song = play_next()
     if next_song is not None:
         play_midi_file("static/midi_files/" + next_song)
 
@@ -226,8 +244,11 @@ def play_next():
     next_song = CONTEXT["playlist"].pop(0)
     return next_song
 
+
 def get_midi_analytics(midi_file_path):
-    mid = mido.MidiFile("static/midi_files/"+midi_file_path)
+    if "static/midi_files/" not in midi_file_path:
+        midi_file_path = "static/midi_files/" + midi_file_path
+    mid = mido.MidiFile(midi_file_path)
     result = {
         "total_notes": 0,
         "total_time": 0,
@@ -252,7 +273,9 @@ def get_midi_analytics(midi_file_path):
                     if msg.key not in result["key_signatures"]:
                         result["key_signatures"].append(msg.key)
                 if msg.type == "time_signature":
-                    result["time_signature"] = "{}/{}".format(msg.numerator, msg.denominator)
+                    result["time_signature"] = "{}/{}".format(
+                        msg.numerator, msg.denominator
+                    )
                 if msg.type == "set_tempo":
                     result["tempo"] = round(mido.tempo2bpm(msg.tempo))
             if msg.type == "note_on" and msg.velocity > 0:
@@ -266,11 +289,14 @@ def get_midi_analytics(midi_file_path):
     if mid.length:
         result["total_time"] = round(mid.length, 2)
 
-    result["average_velocity"] = round(result["average_velocity"] / result["total_notes"], 2)
-    result["average_note_length"] = round(result["total_time"] / result["total_notes"], 2)
+    result["average_velocity"] = round(
+        result["average_velocity"] / result["total_notes"], 2
+    )
+    result["average_note_length"] = round(
+        result["total_time"] / result["total_notes"], 2
+    )
 
     return result
-
 
 
 if __name__ == "__main__":
