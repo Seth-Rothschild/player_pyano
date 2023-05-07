@@ -63,6 +63,23 @@
 		editmode = '';
 	}
 
+	async function downloadFile(file) {
+		const res = await fetch('api/files/download', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ file: file })
+		});
+		if (res.status == 200) {
+			const stream = res.body;
+			const reader = stream.getReader();
+			const newFile = new File([reader], file, { type: 'audio/midi' });
+			const url = window.URL.createObjectURL(newFile);
+			window.open(url, '_blank');
+		}
+	}
+
 	async function getAnalytics(file) {
 		const res = await fetch('api/files/analytics', {
 			method: 'POST',
@@ -110,6 +127,7 @@
 				{:else}
 					<button class="circle transparent" on:click={getAnalytics(file)}><i>audiotrack</i></button
 					>
+					<button class="circle transparent" on:click={downloadFile(file)}><i>get_app</i></button>
 					<h7 style="font-size:1.2em">{file}</h7>
 				{/if}
 			</div>

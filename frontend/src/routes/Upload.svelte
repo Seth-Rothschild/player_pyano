@@ -15,6 +15,7 @@
 		});
 		if (res.status == 200) {
 			outcome = 'Success';
+			files = null;
 		} else {
 			outcome = 'Failed';
 		}

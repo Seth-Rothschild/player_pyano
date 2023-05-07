@@ -23,9 +23,6 @@ def test_volume():
         context = response.json
         assert context["velocity"] == 50
 
-
-def test_volume_bad_input():
-    with app.test_client() as client:
         response = client.post("/api/volume", json={})
         assert response.status_code == 400
 
@@ -36,6 +33,19 @@ def test_volume_max_min():
         assert response.status_code == 400
 
         response = client.post("/api/volume", json={"volume": -1})
+        assert response.status_code == 400
+
+
+def test_set_eq():
+    with app.test_client() as client:
+        response = client.post("/api/eq", json={"eq": [1, 2, 3, 4, 5]})
+        assert response.status_code == 200
+
+        response = client.get("/api/context")
+        context = response.json
+        assert context["EQ"] == [1, 2, 3, 4, 5]
+
+        response = client.post("/api/eq", json={})
         assert response.status_code == 400
 
 
@@ -107,6 +117,46 @@ def test_duplicate_in_playlist():
         ]
 
 
+def test_set_debug():
+    with app.test_client() as client:
+        response = client.post("/api/debug", json={"debug": True})
+        assert response.status_code == 200
+
+        response = client.get("/api/context")
+        context = response.json
+        assert context["DEBUG"] == True
+
+        response = client.post("/api/debug", json={"debug": False})
+        assert response.status_code == 200
+
+        response = client.get("/api/context")
+        context = response.json
+        assert context["DEBUG"] == False
+
+
+def test_panic():
+    with app.test_client() as client:
+        """set some state, check that panic unsets it all"""
+        response = client.post("/api/playlist/add", json={"file": "test_song.mid"})
+        assert response.status_code == 200
+        response = client.post("/api/volume", json={"volume": 10})
+        assert response.status_code == 200
+        response = client.post("/api/eq", json={"eq": [1, 2, 3, 4, 5]})
+        assert response.status_code == 200
+        response = client.post("/api/pause")
+        assert response.status_code == 200
+
+        response = client.post("/api/panic")
+        assert response.status_code == 200
+
+        response = client.get("/api/context")
+        context = response.json
+        assert context["playlist"] == []
+        assert context["velocity"] == 50
+        assert context["EQ"] == [0, 0, 0, 0, 0]
+        assert context["paused"] == False
+
+
 def test_get_analytics():
     sample_file = os.listdir("static/midi_files")[0]
     with app.test_client() as client:
@@ -173,6 +223,21 @@ def test_upload_file():
             response = client.post("/api/files/upload", data={"files": [f]})
             assert response.status_code == 200
             assert os.path.exists("static/midi_files/" + sample_file)
+
+
+def test_download_files():
+    with app.test_client() as client:
+        response = client.post("/api/files/download", json={})
+        assert response.status_code == 400
+
+        sample_file = os.listdir("static/midi_files")[0]
+
+        response = client.post("/api/files/download", json={"file": sample_file})
+        assert response.status_code == 200
+        with open("test_song.mid", "wb") as f:
+            f.write(response.data)
+        assert os.path.exists("test_song.mid")
+        os.remove("test_song.mid")
 
 
 def test_get_midi_analytics():

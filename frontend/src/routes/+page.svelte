@@ -36,7 +36,7 @@
 		<Playlist {context} />
 		<Search {context} {filteredSongs} />
 		<Upload />
-		<Admin />
+		<Admin {context} />
 	{:else}
 		<a class="loader large center" />
 	{/if}

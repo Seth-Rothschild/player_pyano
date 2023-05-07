@@ -5,17 +5,24 @@ import math
 import time
 
 app = Flask(__name__)
-CONTEXT = {
-    "files": os.listdir("static/midi_files"),
-    "selected_file": "",
-    "stop": False,
-    "paused": False,
-    "velocity": 50,
-    "song_length": 0,
-    "percent_done": 0,
-    "playlist": [],
-    "DEBUG": False,
-}
+
+
+def init_context():
+    context = {}
+    context["files"] = os.listdir("static/midi_files")
+    context["selected_file"] = ""
+    context["stop"] = False
+    context["paused"] = False
+    context["velocity"] = 50
+    context["song_length"] = 0
+    context["percent_done"] = 0
+    context["playlist"] = []
+    context["DEBUG"] = False
+    context["EQ"] = [0, 0, 0, 0, 0]
+    return context
+
+
+CONTEXT = init_context()
 
 
 @app.route("/")
@@ -48,6 +55,25 @@ def volume():
         return "Bad Request", 400
 
     CONTEXT["velocity"] = int(velocity)
+    return "OK", 200
+
+
+@app.route("/api/eq", methods=["POST"])
+def eq():
+    if not "eq" in request.json:
+        return "Bad Request", 400
+
+    eq = request.json["eq"]
+    if len(eq) != 5:
+        return "Bad Request", 400
+
+    for i in eq:
+        try:
+            int(i)
+        except ValueError:
+            return "Bad Request", 400
+    CONTEXT["EQ"] = [int(i) for i in eq]
+
     return "OK", 200
 
 
@@ -141,6 +167,34 @@ def get_file_analytics():
     return result, 200
 
 
+@app.route("/api/files/download", methods=["POST"])
+def download_file():
+    if not "file" in request.json:
+        return "Bad Request", 400
+    filename = request.json["file"]
+    filepath = "static/midi_files/" + filename
+    if not os.path.exists(filepath):
+        return "Bad Request", 400
+    return send_from_directory("static/midi_files", filename, as_attachment=True)
+
+
+@app.route("/api/debug", methods=["POST"])
+def debug():
+    if not "debug" in request.json:
+        return "Bad Request", 400
+    CONTEXT["DEBUG"] = request.json["debug"]
+    return "OK", 200
+
+
+@app.route("/api/panic", methods=["POST"])
+def panic():
+    t0 = time.time()
+    while time.time() - t0 < 2:
+        CONTEXT["stop"] = True
+    CONTEXT.update(init_context())
+    return "OK", 200
+
+
 def play_midi_file(filepath):
     if not CONTEXT["selected_file"] == "":
         """If a file is already playing, stop it"""
@@ -163,7 +217,7 @@ def play_midi_file(filepath):
     CONTEXT["song_length"] = mid.length
     analytics = get_midi_analytics(filepath)
 
-    normalization_factor = 40 / analytics["average_velocity"]
+    normalization_factor = 30 / analytics["average_velocity"]
 
     previous_time = time.time()
     time_elapsed = 0
@@ -181,13 +235,18 @@ def play_midi_file(filepath):
             pass
         if CONTEXT["stop"]:
             break
-        if msg.type == "note_on":
+        if msg.type == "note_on" and msg.velocity > 0:
             user_adjustment = (CONTEXT["velocity"] - 50) / 75 + 1
+            eq_adjustment = _get_eq(msg.note)
             proposed_velocity = min(
                 max(
-                    math.floor(user_adjustment * normalization_factor * msg.velocity), 0
+                    math.floor(
+                        user_adjustment * normalization_factor * msg.velocity
+                        + eq_adjustment
+                    ),
+                    0,
                 ),
-                60,
+                50,
             )
             msg.velocity = math.floor(proposed_velocity)
 
@@ -216,6 +275,20 @@ class empty_output:
         pass
 
 
+def _get_eq(note):
+    if note in range(0, 25):
+        i = 0
+    elif note in range(25, 49):
+        i = 1
+    elif note in range(49, 72):
+        i = 2
+    elif note in range(72, 96):
+        i = 3
+    elif note in range(96, 128):
+        i = 4
+    return CONTEXT["EQ"][i]
+
+
 def cleanup_context():
     CONTEXT["selected_file"] = ""
     CONTEXT["stop"] = False
@@ -225,10 +298,11 @@ def cleanup_context():
 
 
 def cleanup_midi(output):
-    # turn off all notes, send 3 times
-    for _ in range(3):
-        for i in range(128):
-            output.send(mido.Message("note_off", channel=0, note=i, velocity=0))
+    # send both versions of note_off
+    for i in range(128):
+        output.send(mido.Message("note_on", channel=0, note=i, velocity=0))
+    for i in range(128):
+        output.send(mido.Message("note_off", channel=0, note=i, velocity=0))
 
     # send control change 123 to turn off all notes
     output.send(mido.Message("control_change", channel=0, control=123, value=0))
